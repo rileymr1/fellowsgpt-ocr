@@ -3,11 +3,13 @@ import os
 import base64
 import io
 
-from build_chain import chain_multimodal_rag as chain
+from build_chain import chain_multimodal_rag
 from build_chain import retriever
 from build_chain import split_image_text_types
 from PIL import Image
 import numpy as np
+
+from get_external_ip import get_external_ip
 
 from dotenv import load_dotenv
 os.environ.clear()
@@ -17,6 +19,12 @@ os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"] = st.secrets["LANGCHAIN_API_KEY"]
 
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"] # st.sidebar.text_input('OpenAI API Key', type='password')
+
+st.title('🏥 FellowsGPT')
+
+## For use if need to whitelist certain IP addresses
+# external_ip = get_external_ip()
+# st.write("External IP: ", external_ip)
 
 def base64_to_image(base64_string):
     # Decode base64 string to binary data
@@ -46,10 +54,6 @@ def base64_to_image(base64_string):
         # Unsupported image type
         raise ValueError("Unsupported image type")
 
-def generate_response(input_text):
-    llm = chain
-    st.info(llm.invoke(input_text))
-
 def print_relevant_images(inputText):
     relevantDocs = retriever.get_relevant_documents(inputText, limit=6)
     relevantDocsSplit = split_image_text_types(relevantDocs)
@@ -59,11 +63,11 @@ def print_relevant_images(inputText):
             image_representation = base64_to_image(img_base64)
             st.image(image_representation)
 
+# Uncomment for running on streamlit
 with st.form('my_form'):
-    inputText = st.text_area('Enter text:', 'What should I do if I feel stuck?')
+    inputText = st.text_area('Enter text:', 'What should be my strategy for planning my project?')
     submitted = st.form_submit_button('Submit')
     if not OPENAI_API_KEY.startswith('sk-'):
         st.warning('Please enter your OpenAI API key!', icon='⚠')
     if submitted and OPENAI_API_KEY.startswith('sk-'):
-        generate_response(inputText)
-        print_relevant_images(inputText)
+        st.write_stream(chain_multimodal_rag.stream(inputText))

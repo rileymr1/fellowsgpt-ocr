@@ -6,13 +6,6 @@ import certifi
 import os
 import numpy as np
 
-from get_external_ip import get_external_ip
-
-st.title('🏥 FellowsGPT')
-
-## For use if need to whitelist certain IP addresses
-# external_ip = get_external_ip()
-# st.write("External IP: ", external_ip)
 
 # from IPython.display import HTML, display
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
@@ -263,11 +256,3 @@ chain_multimodal_rag = multi_modal_rag_chain(retriever)
 # Uncomment for easy debugging
 # print(chain_multimodal_rag.invoke("What should be my strategy for planning my project?"))
 
-# Uncomment for running on streamlit
-with st.form('my_form'):
-    inputText = st.text_area('Enter text:', 'What should be my strategy for planning my project?')
-    submitted = st.form_submit_button('Submit')
-    if not OPENAI_API_KEY.startswith('sk-'):
-        st.warning('Please enter your OpenAI API key!', icon='⚠')
-    if submitted and OPENAI_API_KEY.startswith('sk-'):
-        st.write_stream(chain_multimodal_rag.stream(inputText))
