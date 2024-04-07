@@ -201,11 +201,12 @@ def format_context(rel_docs_contents):
 def print_relevant_images(data_dict):
     st.write("See below for images possibly relevant to this answer.")
     if data_dict["context"]["images"]:
-        for base64_img in data_dict["context"]["images"]:
+        for index, base64_img in enumerate(data_dict["context"]["images"]):
             image_representation = base64_to_image(base64_img)
             st.image(image_representation)
+            st.write("This image is from " + data_dict["context"]["img_names"][index])
             # print (image_representation) # Uncomment if not running on streamlit
-
+    st.write("Generating text response...")
     # Pass the parameter unchanged to the next link in chain       
     return data_dict
 
@@ -267,4 +268,4 @@ with st.form('my_form'):
     if not OPENAI_API_KEY.startswith('sk-'):
         st.warning('Please enter your OpenAI API key!', icon='⚠')
     if submitted and OPENAI_API_KEY.startswith('sk-'):
-        st.info(chain_multimodal_rag.invoke(inputText))
+        st.write_stream(chain_multimodal_rag.stream(inputText))
