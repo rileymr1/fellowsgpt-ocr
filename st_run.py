@@ -9,6 +9,8 @@ import numpy as np
 
 from get_external_ip import get_external_ip
 
+from get_external_ip import get_external_ip
+
 from dotenv import load_dotenv
 os.environ.clear()
 load_dotenv()
@@ -17,6 +19,12 @@ os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"] = st.secrets["LANGCHAIN_API_KEY"]
 
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"] # st.sidebar.text_input('OpenAI API Key', type='password')
+
+st.title('🏥 FellowsGPT')
+
+## For use if need to whitelist certain IP addresses
+# external_ip = get_external_ip()
+# st.write("External IP: ", external_ip)
 
 st.title('🏥 FellowsGPT')
 
@@ -61,6 +69,7 @@ def print_relevant_images(inputText):
             image_representation = base64_to_image(img_base64)
             st.image(image_representation)
 
+# Uncomment for running on streamlit
 # Uncomment for running on streamlit
 with st.form('my_form'):
     inputText = st.text_area('Enter text:', 'What should be my strategy for planning my project?')
