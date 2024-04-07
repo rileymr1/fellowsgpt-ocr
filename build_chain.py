@@ -4,6 +4,7 @@ import base64
 import streamlit as st
 import certifi
 import os
+import numpy as np
 
 from get_external_ip import get_external_ip
 
@@ -40,6 +41,34 @@ load_dotenv()
 
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"] = st.secrets["LANGCHAIN_API_KEY"]
+
+def base64_to_image(base64_string):
+    # Decode base64 string to binary data
+    binary_data = base64.b64decode(base64_string)
+
+    # Create an image object from binary data
+    image = Image.open(io.BytesIO(binary_data))
+
+    # Convert image to numpy array
+    image_array = np.array(image)
+
+    # Check image shape to determine type
+    if len(image_array.shape) == 2:
+        # Monochrome image
+        return image_array
+    elif len(image_array.shape) == 3:
+        if image_array.shape[2] == 1:
+            # Monochrome image (with alpha channel)
+            return image_array[:, :, 0]
+        elif image_array.shape[2] == 3:
+            # Color image
+            return image_array
+        elif image_array.shape[2] == 4:
+            # RGBA image
+            return image_array
+    else:
+        # Unsupported image type
+        raise ValueError("Unsupported image type")
 
 
 def looks_like_base64(sb):
@@ -152,12 +181,33 @@ def get_relevant_docs_contents(doc_ids):
 
 def format_context(rel_docs_contents):
     b64_images = []
-    texts = []
+    raw_texts = []
+    img_names = []
     for doc_content in rel_docs_contents:
+        # Resize & append images
         base64_img = doc_content['base64_img']
         image = resize_base64_image(base64_img, size=(1920, 1080))
         b64_images.append(image)
-    return {"images": b64_images, "texts": texts}
+
+        # Append raw text
+        raw_texts.append(doc_content['raw_text'])
+
+        # Append img_names
+        img_names.append(doc_content['img_name'])
+    return {"images": b64_images, "texts": raw_texts, "img_names": img_names}
+
+
+# Write relevant documents to output first, then continue on with the chain
+def print_relevant_images(data_dict):
+    st.write("See below for images possibly relevant to this answer.")
+    if data_dict["context"]["images"]:
+        for base64_img in data_dict["context"]["images"]:
+            image_representation = base64_to_image(base64_img)
+            # st.image(image_representation)
+            print (image_representation)
+
+    # Pass the parameter unchanged to the next link in chain       
+    return data_dict
 
 
 def multi_modal_rag_chain(retriever):
@@ -174,6 +224,7 @@ def multi_modal_rag_chain(retriever):
             "context": retriever | RunnableLambda(get_relevant_docs_ids) | RunnableLambda(get_relevant_docs_contents) | RunnableLambda(format_context),
             "question": RunnablePassthrough(),
         }   
+        | RunnableLambda(print_relevant_images)
         | RunnableLambda(img_prompt_func)
         | model
         | StrOutputParser()
