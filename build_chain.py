@@ -141,7 +141,6 @@ def get_relevant_docs_ids(docs):
         doc_ids.append(doc.metadata['doc_id'])
     return doc_ids
 
-
 def get_relevant_docs_contents(doc_ids):
     rel_docs_contents = []
     for doc_id in doc_ids:
@@ -150,6 +149,15 @@ def get_relevant_docs_contents(doc_ids):
         rel_doc_content_formatted = {key: value for key, value in rel_doc_content_full.items() if key != '_id' and key != 'doc_id'}
         rel_docs_contents.append(rel_doc_content_formatted)
     return rel_docs_contents
+
+def format_context(rel_docs_contents):
+    b64_images = []
+    texts = []
+    for doc_content in rel_docs_contents:
+        base64_img = doc_content['base64_img']
+        image = resize_base64_image(base64_img, size=(1920, 1080))
+        b64_images.append(image)
+    return {"images": b64_images, "texts": texts}
 
 
 def multi_modal_rag_chain(retriever):
@@ -163,7 +171,7 @@ def multi_modal_rag_chain(retriever):
     # RAG pipeline
     chain = (
         {
-            "context": retriever | RunnableLambda(get_relevant_docs_ids) | RunnableLambda(get_relevant_docs_contents),
+            "context": retriever | RunnableLambda(get_relevant_docs_ids) | RunnableLambda(get_relevant_docs_contents) | RunnableLambda(format_context),
             "question": RunnablePassthrough(),
         }   
         | RunnableLambda(img_prompt_func)
@@ -193,10 +201,9 @@ vectorstore = MongoDBAtlasVectorSearch.from_connection_string(
 )
 
 # Create a vectorstore-backed retriever
-retriever = vectorstore.as_retriever(
-    search_type="similarity_score_threshold", search_kwargs={"score_threshold": 0.1})
+retriever = vectorstore.as_retriever()
 
 # Create RAG chain
 chain_multimodal_rag = multi_modal_rag_chain(retriever)
 
-print(chain_multimodal_rag.invoke("How should I gameplan my project?"))
+print(chain_multimodal_rag.invoke("What should be my strategy for planning my project?"))
