@@ -27,6 +27,10 @@ from langchain_community.vectorstores import MongoDBAtlasVectorSearch
 from pymongo import MongoClient
 from langchain.storage import InMemoryStore
 
+from dotenv import load_dotenv
+os.environ.clear()
+load_dotenv()
+
 # Get secret keys from environment variables
 OPENAI_API_KEY=st.secrets["OPENAI_API_KEY"]
 MONGODB_CONN_STRING=st.secrets["MONGODB_CONN_STRING"]
@@ -35,9 +39,7 @@ VECTOR_COLLECTION_NAME=st.secrets["VECTOR_COLLECTION_NAME"]
 KEYVALUE_COLLECTION_NAME=st.secrets["KEYVALUE_COLLECTION_NAME"]
 VECTOR_INDEX_NAME=st.secrets["VECTOR_INDEX_NAME"]
 
-from dotenv import load_dotenv
-os.environ.clear()
-load_dotenv()
+
 
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"] = st.secrets["LANGCHAIN_API_KEY"]
