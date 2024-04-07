@@ -3,6 +3,7 @@ import re
 import base64
 import streamlit as st
 import certifi
+import os
 
 from get_external_ip import get_external_ip
 
@@ -33,6 +34,14 @@ VECTOR_COLLECTION_NAME=st.secrets["VECTOR_COLLECTION_NAME"]
 KEYVALUE_COLLECTION_NAME=st.secrets["KEYVALUE_COLLECTION_NAME"]
 VECTOR_INDEX_NAME=st.secrets["VECTOR_INDEX_NAME"]
 
+from dotenv import load_dotenv
+os.environ.clear()
+load_dotenv()
+
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+os.environ["LANGCHAIN_API_KEY"] = st.secrets["LANGCHAIN_API_KEY"]
+
+
 def looks_like_base64(sb):
     """Check if the string looks like base64"""
     return re.match("^[A-Za-z0-9+/]+[=]{0,2}$", sb) is not None
@@ -59,7 +68,7 @@ def is_image_data(b64data):
         return False
     
 
-def img_prompt_func(data_dict):
+def img_prompt_func(data_dict): ## data_dict is the same `{context: ___, question: ____}` that is defined in the chain
     """
     Join the context into a single string
     """
@@ -126,6 +135,23 @@ def split_image_text_types(docs):
             texts.append(doc)
     return {"images": b64_images, "texts": texts}
 
+def get_relevant_docs_ids(docs):
+    doc_ids = []
+    for doc in docs:
+        doc_ids.append(doc.metadata['doc_id'])
+    return doc_ids
+
+
+def get_relevant_docs_contents(doc_ids):
+    rel_docs_contents = []
+    for doc_id in doc_ids:
+        query = {"doc_id": doc_id}
+        rel_doc_content_full = raw_contents.find_one(query)
+        rel_doc_content_formatted = {key: value for key, value in rel_doc_content_full.items() if key != '_id' and key != 'doc_id'}
+        rel_docs_contents.append(rel_doc_content_formatted)
+    return rel_docs_contents
+
+
 def multi_modal_rag_chain(retriever):
     """
     Multi-modal RAG chain
@@ -137,7 +163,7 @@ def multi_modal_rag_chain(retriever):
     # RAG pipeline
     chain = (
         {
-            "context": retriever | RunnableLambda(split_image_text_types),
+            "context": retriever | RunnableLambda(get_relevant_docs_ids) | RunnableLambda(get_relevant_docs_contents),
             "question": RunnablePassthrough(),
         }   
         | RunnableLambda(img_prompt_func)
@@ -147,50 +173,30 @@ def multi_modal_rag_chain(retriever):
 
     return chain
 
-id_key = "doc_id"
-store = InMemoryStore()
-
-embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
-
 # Initialize MongoDB clients
 client = MongoClient(MONGODB_CONN_STRING, tlsCAFile=certifi.where())
 mongoDB = client[DB_NAME]
 vector_collection = client[DB_NAME][VECTOR_COLLECTION_NAME]
 kv_collection = client[DB_NAME][KEYVALUE_COLLECTION_NAME]
 
+store = InMemoryStore()
+
 print ("MongoDB connected: ", mongoDB)
+
+raw_contents = kv_collection
 
 vectorstore = MongoDBAtlasVectorSearch.from_connection_string(
     MONGODB_CONN_STRING,
     DB_NAME + "." + VECTOR_COLLECTION_NAME,
-    OpenAIEmbeddings(disallowed_special=()), # embeddings, # OpenAIEmbeddings(disallowed_special=()),
+    OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY, disallowed_special=()), # embeddings, # OpenAIEmbeddings(disallowed_special=()),
     index_name=VECTOR_INDEX_NAME
 )
 
-# kv_collection.find_one()
-mongoDict = {}
-for docObject in kv_collection.find():
-    mongoDict.update(docObject)
-
-mongoObjArr = []
-# Flag to skip the first entry
-skip_first = True
-for key, value in mongoDict.items():
-    if skip_first:
-        skip_first = False
-        continue  # Skip the first iteration
-    mongoObjArr.append((key, value))
-
-store.mset(mongoObjArr)
-
-# Create the multi-vector retriever
-retriever = MultiVectorRetriever(
-    vectorstore=vectorstore,
-    docstore=store,
-    id_key=id_key,
-)
+# Create a vectorstore-backed retriever
+retriever = vectorstore.as_retriever(
+    search_type="similarity_score_threshold", search_kwargs={"score_threshold": 0.1})
 
 # Create RAG chain
 chain_multimodal_rag = multi_modal_rag_chain(retriever)
 
-print(chain_multimodal_rag.invoke("How can I convince an IT stakeholder to invest resources into my initiative to build regimen margin projections into Allscripts?"))
+print(chain_multimodal_rag.invoke("How should I gameplan my project?"))
