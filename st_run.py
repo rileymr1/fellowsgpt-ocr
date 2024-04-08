@@ -3,9 +3,7 @@ import os
 import base64
 import io
 
-from build_chain import chain_multimodal_rag
-from build_chain import retriever
-from build_chain import split_image_text_types
+from build_chain import split_image_text_types, retriever, chain_multimodal_rag as single_rag_chain, conversational_rag_chain, conversation_store
 from PIL import Image
 import numpy as np
 
@@ -70,4 +68,4 @@ with st.form('my_form'):
     if not OPENAI_API_KEY.startswith('sk-'):
         st.warning('Please enter your OpenAI API key!', icon='⚠')
     if submitted and OPENAI_API_KEY.startswith('sk-'):
-        st.write_stream(chain_multimodal_rag.stream(inputText))
+        st.write_stream(single_rag_chain.stream(inputText))
