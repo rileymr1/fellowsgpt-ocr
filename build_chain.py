@@ -32,11 +32,10 @@ VECTOR_COLLECTION_NAME=st.secrets["VECTOR_COLLECTION_NAME"]
 KEYVALUE_COLLECTION_NAME=st.secrets["KEYVALUE_COLLECTION_NAME"]
 VECTOR_INDEX_NAME=st.secrets["VECTOR_INDEX_NAME"]
 
+
+
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"] = st.secrets["LANGCHAIN_API_KEY"]
-
-global_model = ChatOpenAI(temperature=0, model="gpt-4-vision-preview", openai_api_key=OPENAI_API_KEY)
-
 
 def base64_to_image(base64_string):
     # Decode base64 string to binary data
@@ -213,7 +212,7 @@ def multi_modal_rag_chain(retriever):
     """
 
     # Multi-modal LLM
-    model = global_model
+    model = ChatOpenAI(temperature=0, model="gpt-4-vision-preview", openai_api_key=OPENAI_API_KEY)
 
     # RAG pipeline
     chain = (
@@ -254,75 +253,5 @@ retriever = vectorstore.as_retriever()
 # Create RAG chain
 chain_multimodal_rag = multi_modal_rag_chain(retriever)
 
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.runnables.history import RunnableWithMessageHistory
-
-
-### Contextualize question ###
-contextualize_q_system_prompt = """Given a chat history and the latest user question \
-which might reference context in the chat history, formulate a standalone question \
-which can be understood without the chat history. Do NOT answer the question, \
-just reformulate it if needed and otherwise return it as is."""
-contextualize_q_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", contextualize_q_system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
-    ]
-)
-history_aware_retriever = create_history_aware_retriever(
-    global_model, retriever, contextualize_q_prompt
-)
-
-
-### Answer question ###
-qa_system_prompt = """You are an assistant for question-answering tasks. \
-Use the following pieces of retrieved context to answer the question. \
-If you don't know the answer, just say that you don't know. \
-Use three sentences maximum and keep the answer concise.\
-
-{context}"""
-qa_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", qa_system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
-    ]
-)
-question_answer_chain = create_stuff_documents_chain(global_model, qa_prompt)
-
-rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
-
-
-### Statefully manage chat history ###
-conversation_store = {}
-
-
-def get_session_history(session_id: str) -> BaseChatMessageHistory:
-    if session_id not in store:
-        store[session_id] = ChatMessageHistory()
-    return store[session_id]
-
-
-conversational_rag_chain = RunnableWithMessageHistory(
-    rag_chain,
-    get_session_history,
-    input_messages_key="input",
-    history_messages_key="chat_history",
-    output_messages_key="answer",
-)
-
 # Uncomment for easy debugging
-query = "What should be my strategy for planning my project?"
 # print(chain_multimodal_rag.invoke("What should be my strategy for planning my project?"))
-print(conversational_rag_chain.invoke(
-    {"input": query},
-    config={
-        "configurable": {"session_id": "abc123"}
-    },  # constructs a key "abc123" in `store`.
-)["answer"])
-
