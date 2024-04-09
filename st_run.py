@@ -26,12 +26,6 @@ st.title('🏥 FellowsGPT')
 # external_ip = get_external_ip()
 # st.write("External IP: ", external_ip)
 
-st.title('🏥 FellowsGPT')
-
-## For use if need to whitelist certain IP addresses
-# external_ip = get_external_ip()
-# st.write("External IP: ", external_ip)
-
 def base64_to_image(base64_string):
     # Decode base64 string to binary data
     binary_data = base64.b64decode(base64_string)
@@ -69,7 +63,6 @@ def print_relevant_images(inputText):
             image_representation = base64_to_image(img_base64)
             st.image(image_representation)
 
-# Uncomment for running on streamlit
 # Uncomment for running on streamlit
 with st.form('my_form'):
     inputText = st.text_area('Enter text:', 'What should be my strategy for planning my project?')
