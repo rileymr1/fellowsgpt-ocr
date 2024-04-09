@@ -3,7 +3,7 @@ import os
 import base64
 import io
 
-from build_chain import split_image_text_types, retriever, chain_multimodal_rag as single_rag_chain, conversational_rag_chain, conversation_store
+from build_chain import split_image_text_types, retriever, chain_multimodal_rag as single_rag_chain
 from PIL import Image
 import numpy as np
 
